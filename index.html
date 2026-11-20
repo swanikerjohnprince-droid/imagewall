@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#08080a">
+<title>Image Wall — Search &amp; Project</title>
+<meta name="description" content="A minimal, full-screen image search board. Search anything, click any image to fill the screen.">
+
+<!-- Warm the connections the first search needs. Font hosts are CORS
+     fetches (crossorigin); image hosts are plain <img> loads (no
+     crossorigin, or the browser opens a second connection pool). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://api.openverse.org" crossorigin>
+<link rel="preconnect" href="https://thumb.wikimedia.org">
+<link rel="preconnect" href="https://upload.wikimedia.org">
+<link rel="preconnect" href="https://live.staticflickr.com">
+<link rel="preconnect" href="https://images.pexels.com">
+<link rel="preconnect" href="https://cdn.pixabay.com">
+<link rel="preconnect" href="https://images.unsplash.com">
+<link rel="preconnect" href="https://www.artic.edu">
+<link rel="preconnect" href="https://openaccess-cdn.clevelandart.org">
+<link rel="preconnect" href="https://images-assets.nasa.gov">
+<link rel="preconnect" href="https://static.inaturalist.org">
+<link rel="preconnect" href="https://inaturalist-open-data.s3.amazonaws.com" crossorigin>
+
+<!-- Inter without a render-blocking third-party stylesheet: fetch it in
+     the background and apply it when it lands (it already uses
+     font-display: swap, so text paints immediately either way). -->
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;display=swap"></noscript>
+
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%2308080a'/><circle cx='42' cy='42' r='17' fill='none' stroke='%23f5f5f7' stroke-width='8'/><path d='M56 56 L74 74' stroke='%23f5f5f7' stroke-width='9' stroke-linecap='round'/></svg>">
+</head>
+<body>
+
+<header class="header" id="header">
+  <div class="header-inner">
+    <form class="search" id="search-form" role="search" autocomplete="off">
+      <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="M16.5 16.5 21 21"></path>
+      </svg>
+      <input
+        id="q"
+        name="q"
+        type="text"
+        inputmode="search"
+        enterkeyhint="search"
+        placeholder="Search any image…"
+        aria-label="Search images"
+        spellcheck="false"
+        autocapitalize="off"
+        autocorrect="off">
+      <button class="clear-btn" id="clear-btn" type="button" aria-label="Clear search" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+      </button>
+    </form>
+
+    <button class="sources-btn" id="sources-btn" type="button" aria-label="Image sources" aria-haspopup="dialog" aria-expanded="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="4" width="18" height="6" rx="2"></rect>
+        <rect x="3" y="14" width="18" height="6" rx="2"></rect>
+        <circle cx="9" cy="7" r="2.1" fill="currentColor" stroke="none"></circle>
+        <circle cx="15" cy="17" r="2.1" fill="currentColor" stroke="none"></circle>
+      </svg>
+      <span class="sources-count" id="sources-count">0</span>
+    </button>
+  </div>
+</header>
+
+<main id="main">
+
+  <section class="empty" id="empty">
+    <div class="empty-inner">
+      <h1>Find an image.<br><span>Fill the screen.</span></h1>
+      <p class="empty-sub">Type anything. Click any image to project it full screen.</p>
+      <div class="chips" id="chips" role="list"></div>
+    </div>
+  </section>
+
+  <section class="grid" id="grid" aria-label="Image results" aria-live="polite"></section>
+
+  <div class="status" id="status" role="status"></div>
+
+  <div class="sentinel" id="sentinel" aria-hidden="true">
+    <span class="spinner" id="sentinel-spinner"></span>
+  </div>
+
+</main>
+
+<div class="viewer" id="viewer" role="dialog" aria-modal="true" aria-label="Full screen image" aria-hidden="true">
+  <div class="viewer-bar">
+    <span class="viewer-count" id="viewer-count"></span>
+  </div>
+
+  <button class="viewer-close" id="viewer-close" type="button" aria-label="Close (Esc)">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+  </button>
+
+  <button class="viewer-nav prev" id="viewer-prev" type="button" aria-label="Previous image">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4 7 12l8 8"></path></svg>
+  </button>
+
+  <img class="viewer-img" id="viewer-img" alt="" draggable="false">
+
+  <button class="viewer-nav next" id="viewer-next" type="button" aria-label="Next image">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4l8 8-8 8"></path></svg>
+  </button>
+
+  <div class="viewer-loading" id="viewer-loading" hidden><span class="spinner"></span></div>
+
+  <div class="viewer-hint" id="viewer-hint">
+    <span><b>Esc</b> close</span>
+    <span><b>← →</b> browse</span>
+    <span><b>F</b> fullscreen</span>
+  </div>
+</div>
+
+<div class="sheet" id="sources-sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden>
+  <div class="sheet-panel">
+    <header class="sheet-head">
+      <h2 id="sheet-title">Sources</h2>
+      <button class="sheet-close" id="sources-close" type="button" aria-label="Close sources">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+      </button>
+    </header>
+    <div class="sheet-body" id="sources-body"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
