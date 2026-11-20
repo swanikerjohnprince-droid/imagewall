@@ -55,6 +55,12 @@
   const KEYS_KEY = 'imagewall.keys.v1';
   const SOURCES_KEY = 'imagewall.sources.v1';
 
+  // Baked-in default API keys, used when this browser has none stored.
+  // WARNING: this file is served as public static JS — anyone can read these.
+  const DEFAULT_KEYS = {
+    pixabay: '53105794-ea4df60b226951916b041f7bc',
+  };
+
   const COOLDOWN_MS = 60 * 1000; // how long a rate-limited source rests
 
   const saveData = !!(
@@ -111,7 +117,7 @@
       try { localStorage.setItem(store, JSON.stringify(value)); } catch (_) {}
     },
 
-    keys() { return this.read(KEYS_KEY, {}); },
+    keys() { return { ...DEFAULT_KEYS, ...this.read(KEYS_KEY, {}) }; },
     key(id) {
       const v = this.keys()[id];
       return typeof v === 'string' ? v.trim() : '';
